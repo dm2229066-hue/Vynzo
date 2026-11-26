@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Vynzo</string>
+    <string name="tagline">Connect. Share. Create.</string>
+    <string name="sign_in_google">Continue with Google</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_create">Create</string>
+    <string name="nav_reels">Reels</string>
+    <string name="nav_profile">Profile</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+</resources>

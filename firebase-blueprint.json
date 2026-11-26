@@ -1,0 +1,355 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public creator profile for a Vynzo user (no PII such as email or phone).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "username": { "type": "string", "description": "Unique lowercase handle (3-30 chars)." },
+        "displayName": { "type": "string", "description": "Public display name (1-50 chars)." },
+        "bio": { "type": "string", "description": "Profile bio (0-200 chars)." },
+        "website": { "type": "string", "description": "Optional website link (0-200 chars)." },
+        "avatarUrl": { "type": "string", "description": "Profile photo URI or compressed data URI." },
+        "coverUrl": { "type": "string", "description": "Optional profile header image URI." },
+        "privateAccount": { "type": "boolean", "description": "Whether account requires follow approval." },
+        "status": { "type": "string", "enum": ["active", "suspended"], "description": "Account moderation status." },
+        "commentControl": { "type": "string", "enum": ["everyone", "followers", "none"], "description": "Who can comment on user posts." },
+        "messagePrivacy": { "type": "string", "enum": ["everyone", "followers"], "description": "Who can initiate direct messages." },
+        "followersCount": { "type": "integer", "description": "Cached followers count." },
+        "followingCount": { "type": "integer", "description": "Cached following count." },
+        "postsCount": { "type": "integer", "description": "Cached posts count." },
+        "verified": { "type": "boolean", "description": "Creator verification badge (admin-managed)." },
+        "online": { "type": "boolean", "description": "Real-time online presence indicator." },
+        "lastActiveAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last activity." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "username", "displayName", "status", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Owner-only private user settings, PII, blocked/restricted lists, and FCM token.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "fcmToken": { "type": "string" },
+        "themeMode": { "type": "string", "enum": ["system", "dark", "light"] },
+        "notifyLikes": { "type": "boolean" },
+        "notifyComments": { "type": "boolean" },
+        "notifyFollows": { "type": "boolean" },
+        "notifyMessages": { "type": "boolean" },
+        "adsConsentAccepted": { "type": "boolean" },
+        "blockedUids": { "type": "array" },
+        "restrictedUids": { "type": "array" },
+        "recentSearches": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "updatedAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Social media post or Reel published on Vynzo.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorDisplayName": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "carousel", "video", "reel"] },
+        "mediaUrls": { "type": "array", "description": "Bounded list of 1-10 media URIs or data URIs." },
+        "coverUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "hashtags": { "type": "array" },
+        "taggedUserIds": { "type": "array" },
+        "locationName": { "type": "string" },
+        "musicTitle": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public", "followers", "draft", "removed"] },
+        "commentsDisabled": { "type": "boolean" },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "sharesCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorUsername", "mediaType", "mediaUrls", "visibility", "createdAt", "updatedAt"]
+    },
+    "PostComment": {
+      "title": "PostComment",
+      "description": "Comment on a post or Reel.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "postAuthorId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "text": { "type": "string" },
+        "hidden": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "postAuthorId", "authorId", "authorUsername", "text", "hidden", "createdAt"]
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "description": "Single-document like marker keyed by userId.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "24-hour ephemeral photo or video story.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "mediaUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public", "close_friends"] },
+        "viewsCount": { "type": "integer" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorUsername", "mediaType", "mediaUrl", "visibility", "expiresAt", "createdAt"]
+    },
+    "StoryView": {
+      "title": "StoryView",
+      "description": "Viewer and reaction record for a story.",
+      "type": "object",
+      "properties": {
+        "viewerId": { "type": "string" },
+        "viewerUsername": { "type": "string" },
+        "viewerAvatarUrl": { "type": "string" },
+        "reaction": { "type": "string" },
+        "viewedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["viewerId", "viewerUsername", "viewedAt"]
+    },
+    "StoryHighlight": {
+      "title": "StoryHighlight",
+      "description": "Curated permanent story highlight on a user's profile.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "storyMediaUrls": { "type": "array" },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "visibility", "createdAt", "updatedAt"]
+    },
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "Saved post bookmark in a user's collection.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "postId": { "type": "string" },
+        "collectionName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "postId", "collectionName", "createdAt"]
+    },
+    "FollowRelation": {
+      "title": "FollowRelation",
+      "description": "Follow or pending follow request between two users.",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followerUsername": { "type": "string" },
+        "followerAvatarUrl": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetUsername": { "type": "string" },
+        "targetAvatarUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["accepted", "pending"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["followerId", "targetId", "status", "createdAt", "updatedAt"]
+    },
+    "ChatThread": {
+      "title": "ChatThread",
+      "description": "Direct message thread between two users.",
+      "type": "object",
+      "properties": {
+        "participantUids": { "type": "array" },
+        "participantNames": { "type": "object" },
+        "participantAvatars": { "type": "object" },
+        "lastMessageText": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "typingUid": { "type": "string" },
+        "unreadCounts": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participantUids", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message inside a direct message thread.",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "senderId": { "type": "string" },
+        "messageType": { "type": "string", "enum": ["text", "image", "video", "voice"] },
+        "text": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "replyToMessageId": { "type": "string" },
+        "replyToPreview": { "type": "string" },
+        "reactionEmoji": { "type": "string" },
+        "readBy": { "type": "array" },
+        "deleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "participantUids", "senderId", "messageType", "deleted", "createdAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "In-app notification for social interactions.",
+      "type": "object",
+      "properties": {
+        "recipientId": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorUsername": { "type": "string" },
+        "actorAvatarUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "comment", "follow", "follow_request", "mention", "story_reaction", "message", "share", "reel"] },
+        "targetId": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientId", "actorId", "actorUsername", "type", "read", "createdAt"]
+    },
+    "ModerationReport": {
+      "title": "ModerationReport",
+      "description": "User-submitted report for content or profile moderation.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["post", "reel", "user", "comment", "story"] },
+        "targetId": { "type": "string" },
+        "reason": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetType", "targetId", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "HashtagEntry": {
+      "title": "HashtagEntry",
+      "description": "Trending or curated hashtag metadata.",
+      "type": "object",
+      "properties": {
+        "tag": { "type": "string" },
+        "postsCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["active", "blocked"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tag", "postsCount", "status", "updatedAt"]
+    },
+    "AdminConfig": {
+      "title": "AdminConfig",
+      "description": "Admin-managed monetization and feature config.",
+      "type": "object",
+      "properties": {
+        "active": { "type": "boolean" },
+        "adsEnabled": { "type": "boolean" },
+        "nativeFeedInterval": { "type": "integer" },
+        "interstitialCooldownSec": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["active", "adsEnabled", "nativeFeedInterval", "interstitialCooldownSec", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Server-provisioned admin marker document.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string" },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public creator profiles (no PII)."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Owner-only PII, privacy lists, and preferences."
+    },
+    "/users/{userId}/highlights/{highlightId}": {
+      "schema": { "$ref": "#/entities/StoryHighlight" },
+      "description": "Profile story highlights."
+    },
+    "/users/{userId}/bookmarks/{postId}": {
+      "schema": { "$ref": "#/entities/Bookmark" },
+      "description": "Saved post bookmarks owned by userId."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Feed posts and Vynzo Reels."
+    },
+    "/posts/{postId}/likes/{likeUserId}": {
+      "schema": { "$ref": "#/entities/PostLike" },
+      "description": "Per-user post like documents."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/PostComment" },
+      "description": "Comments on posts and Reels."
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/Story" },
+      "description": "24-hour ephemeral stories."
+    },
+    "/stories/{storyId}/views/{viewerId}": {
+      "schema": { "$ref": "#/entities/StoryView" },
+      "description": "Story view and reaction records."
+    },
+    "/follows/{followId}": {
+      "schema": { "$ref": "#/entities/FollowRelation" },
+      "description": "Follow relationships and pending follow requests."
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/ChatThread" },
+      "description": "1-to-1 direct message threads."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Real-time direct messages inside a thread."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "User activity notifications."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ModerationReport" },
+      "description": "Content and profile moderation reports."
+    },
+    "/hashtags/{tagId}": {
+      "schema": { "$ref": "#/entities/HashtagEntry" },
+      "description": "Trending and moderated hashtags."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/AdminConfig" },
+      "description": "Admin-managed ad frequency and app configuration."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Trusted server-managed admin allowlist."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Vynzo",
+  "description": "VYNZO — Connect. Share. Create. Modern social media platform with Feeds, Stories, Reels, Direct Messages, Notifications, and Admin Moderation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
