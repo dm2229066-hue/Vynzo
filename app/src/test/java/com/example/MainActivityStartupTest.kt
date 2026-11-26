@@ -13,6 +13,7 @@ import com.example.ads.VynzoAdManager
 import com.example.data.firebase.VynzoAuthManager
 import com.example.data.firebase.VynzoFirebaseHelper
 import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,8 +45,25 @@ class MainActivityStartupTest {
     VynzoFirebaseHelper.forceUninitializedForTest = false
   }
 
+  private fun ensureTestFirebaseInitialized(context: Context) {
+    if (FirebaseApp.getApps(context).isEmpty()) {
+      runCatching { FirebaseApp.initializeApp(context) }.getOrNull()
+        ?: FirebaseApp.initializeApp(
+          context,
+          FirebaseOptions.Builder()
+            .setApplicationId("1:123456789012:android:abcdef1234567890")
+            .setApiKey("AIzaSyTestKeyForUnitTestsOnly00000000000")
+            .setProjectId("vynzo-unit-test-project")
+            .build()
+        )
+    }
+  }
+
   @Test
   fun `MainActivity launches splash and onboarding without crashing when Firebase is initialized`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    ensureTestFirebaseInitialized(context)
+
     ActivityScenario.launch(MainActivity::class.java).use {
       composeTestRule.waitForIdle()
       composeTestRule.onNodeWithText("VYNZO").assertIsDisplayed()
