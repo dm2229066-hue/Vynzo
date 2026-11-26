@@ -39,39 +39,39 @@ jobs:
             echo "Using repository app/google-services.json."
           elif [ -n "$GOOGLE_SERVICES_JSON" ]; then
             python3 -c '
-import json, os, sys
-raw = os.environ["GOOGLE_SERVICES_JSON"].strip()
-try:
-    data = json.loads(raw)
-except json.JSONDecodeError as e:
-    print(f"::error::GOOGLE_SERVICES_JSON secret is not valid JSON: {e}")
-    sys.exit(1)
-clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
-if "com.aistudio.vynzo.kxmpzq" not in clients:
-    print("::error::GOOGLE_SERVICES_JSON does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
-    sys.exit(1)
-with open("app/google-services.json", "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
-print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON secret (values redacted).")
-'
+          import json, os, sys
+          raw = os.environ["GOOGLE_SERVICES_JSON"].strip()
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as e:
+              print(f"::error::GOOGLE_SERVICES_JSON secret is not valid JSON: {e}")
+              sys.exit(1)
+          clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
+          if "com.aistudio.vynzo.kxmpzq" not in clients:
+              print("::error::GOOGLE_SERVICES_JSON does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
+              sys.exit(1)
+          with open("app/google-services.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+          print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON secret (values redacted).")
+            '
           elif [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
             python3 -c '
-import base64, json, os, re, sys
-b64 = re.sub(r"\s+", "", os.environ["GOOGLE_SERVICES_JSON_BASE64"])
-try:
-    raw = base64.b64decode(b64).decode("utf-8")
-    data = json.loads(raw)
-except Exception as e:
-    print(f"::error::GOOGLE_SERVICES_JSON_BASE64 secret is invalid: {e}")
-    sys.exit(1)
-clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
-if "com.aistudio.vynzo.kxmpzq" not in clients:
-    print("::error::GOOGLE_SERVICES_JSON_BASE64 does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
-    sys.exit(1)
-with open("app/google-services.json", "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
-print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret (values redacted).")
-'
+          import base64, json, os, re, sys
+          b64 = re.sub(r"\s+", "", os.environ["GOOGLE_SERVICES_JSON_BASE64"])
+          try:
+              raw = base64.b64decode(b64).decode("utf-8")
+              data = json.loads(raw)
+          except Exception as e:
+              print(f"::error::GOOGLE_SERVICES_JSON_BASE64 secret is invalid: {e}")
+              sys.exit(1)
+          clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
+          if "com.aistudio.vynzo.kxmpzq" not in clients:
+              print("::error::GOOGLE_SERVICES_JSON_BASE64 does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
+              sys.exit(1)
+          with open("app/google-services.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+          print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret (values redacted).")
+            '
           else
             echo "::warning::Firebase config missing: neither app/google-services.json nor GOOGLE_SERVICES_JSON secret was provided. The APK will open to the Firebase Configuration Missing screen until GOOGLE_SERVICES_JSON is added in GitHub Secrets."
           fi
