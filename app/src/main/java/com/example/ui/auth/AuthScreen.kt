@@ -204,7 +204,7 @@ private fun VynzoSplashView() {
 }
 
 @Composable
-private fun VynzoOnboardingView(onFinish: () -> Unit) {
+fun VynzoOnboardingView(onFinish: () -> Unit) {
   val slides = remember {
     listOf(
       OnboardingSlide(

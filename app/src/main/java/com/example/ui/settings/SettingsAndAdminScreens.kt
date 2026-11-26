@@ -83,6 +83,7 @@ import androidx.credentials.CredentialManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ads.VynzoAdManager
 import com.example.data.firebase.VynzoAuthManager
+import com.example.data.firebase.findActivity
 import com.example.data.model.HashtagEntry
 import com.example.data.model.ModerationReport
 import com.example.data.model.Post
@@ -303,7 +304,7 @@ fun SettingsScreen(
           subtitle = "Watch a rewarded ad to unlock a creator spotlight boost",
           onClick = {
             VynzoAdManager.showRewardedAd(
-              activity = context as? Activity,
+              activity = context.findActivity(),
               personalizedConsent = adsConsentAccepted,
               onRewardEarned = {
                 viewModel.notifyMessage("Spotlight boost unlocked! Your next post is prioritized.")

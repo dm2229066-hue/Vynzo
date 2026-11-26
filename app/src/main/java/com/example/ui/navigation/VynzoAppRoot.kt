@@ -1,11 +1,11 @@
 package com.example.ui.navigation
 
 import android.Manifest
-import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +16,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddBox
 import androidx.compose.material.icons.outlined.Explore
@@ -27,6 +34,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.rounded.AddBox
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Movie
@@ -43,6 +51,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -77,6 +87,8 @@ import androidx.navigation.toRoute
 import com.example.R
 import com.example.ads.VynzoAdManager
 import com.example.data.firebase.VynzoAuthManager
+import com.example.data.firebase.VynzoFirebaseHelper
+import com.example.data.firebase.findActivity
 import com.example.data.model.UiState
 import com.example.data.repository.AdminRepository
 import com.example.data.repository.ChatRepository
@@ -87,6 +99,7 @@ import com.example.data.repository.UserRepository
 import com.example.data.repository.VynzoPreferencesRepository
 import com.example.ui.auth.AuthFlowScreen
 import com.example.ui.auth.ProfileSetupScreen
+import com.example.ui.auth.VynzoOnboardingView
 import com.example.ui.chat.ChatDetailScreen
 import com.example.ui.chat.ChatListScreen
 import com.example.ui.components.VynzoWordmark
@@ -104,6 +117,7 @@ import com.example.ui.settings.AdminDashboardScreen
 import com.example.ui.settings.InfoPageScreen
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.stories.StoryViewerScreen
+import com.example.ui.theme.LocalVynzoColors
 import com.example.ui.theme.VynzoTheme
 import com.example.ui.theme.VynzoThemeMode
 import com.example.ui.viewmodel.VynzoSessionViewModel
@@ -135,16 +149,26 @@ private val VynzoBottomTabs = listOf(
 @Composable
 fun VynzoAppRoot() {
   val context = LocalContext.current
+  val appContext = context.applicationContext ?: context
   val scope = rememberCoroutineScope()
-  val prefsRepository = remember(context) { VynzoPreferencesRepository(context) }
+  val prefsRepository = remember(appContext) { VynzoPreferencesRepository(appContext) }
 
   val onboardingCompleted by prefsRepository.onboardingCompleted.collectAsStateWithLifecycle(initialValue = false)
   val themeMode by prefsRepository.themeMode.collectAsStateWithLifecycle(initialValue = VynzoThemeMode.DARK)
   val adsConsent by prefsRepository.adsConsentAccepted.collectAsStateWithLifecycle(initialValue = true)
 
-  var currentUser by remember { mutableStateOf<FirebaseUser?>(Firebase.auth.currentUser) }
-  DisposableEffect(Unit) {
-    val auth = Firebase.auth
+  var isFirebaseReady by remember(appContext) {
+    mutableStateOf(VynzoFirebaseHelper.ensureInitialized(appContext))
+  }
+  var currentUser by remember(isFirebaseReady) {
+    mutableStateOf(if (isFirebaseReady) VynzoFirebaseHelper.currentUserOrNull(appContext) else null)
+  }
+
+  DisposableEffect(isFirebaseReady) {
+    if (!isFirebaseReady) {
+      return@DisposableEffect onDispose {}
+    }
+    val auth = runCatching { Firebase.auth }.getOrNull() ?: return@DisposableEffect onDispose {}
     val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
       currentUser = firebaseAuth.currentUser
     }
@@ -153,29 +177,122 @@ fun VynzoAppRoot() {
   }
 
   LaunchedEffect(adsConsent) {
-    VynzoAdManager.initialize(context, adsConsent)
+    VynzoAdManager.initialize(appContext, adsConsent)
   }
 
   VynzoTheme(themeMode = themeMode) {
-    val user = currentUser
-    if (user == null) {
-      AuthFlowScreen(
-        onboardingCompleted = onboardingCompleted,
-        onMarkOnboardingCompleted = {
-          scope.launch { prefsRepository.setOnboardingCompleted(true) }
-        },
-        onAuthSuccess = {
-          currentUser = Firebase.auth.currentUser
+    if (!isFirebaseReady) {
+      FirebaseSetupRequiredScreen(
+        onRetry = {
+          val ready = VynzoFirebaseHelper.ensureInitialized(appContext)
+          isFirebaseReady = ready
+          if (ready) {
+            currentUser = VynzoFirebaseHelper.currentUserOrNull(appContext)
+          }
         }
       )
     } else {
-      key(user.uid) {
-        AuthenticatedVynzoShell(
-          firebaseUser = user,
-          prefsRepository = prefsRepository,
-          themeMode = themeMode,
-          adsConsent = adsConsent
+      val user = currentUser
+      if (user == null) {
+        AuthFlowScreen(
+          onboardingCompleted = onboardingCompleted,
+          onMarkOnboardingCompleted = {
+            scope.launch { prefsRepository.setOnboardingCompleted(true) }
+          },
+          onAuthSuccess = {
+            currentUser = VynzoFirebaseHelper.currentUserOrNull(appContext)
+          }
         )
+      } else {
+        key(user.uid) {
+          AuthenticatedVynzoShell(
+            firebaseUser = user,
+            prefsRepository = prefsRepository,
+            themeMode = themeMode,
+            adsConsent = adsConsent
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun FirebaseSetupRequiredScreen(onRetry: () -> Unit) {
+  val colors = LocalVynzoColors.current
+  var showTourPreview by remember { mutableStateOf(false) }
+
+  if (showTourPreview) {
+    VynzoOnboardingView(onFinish = { showTourPreview = false })
+    return
+  }
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(MaterialTheme.colorScheme.background)
+      .statusBarsPadding()
+      .navigationBarsPadding()
+      .verticalScroll(rememberScrollState())
+      .padding(24.dp),
+    contentAlignment = Alignment.Center
+  ) {
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .widthIn(max = 480.dp)
+        .testTag("firebase_setup_required_card"),
+      shape = RoundedCornerShape(24.dp),
+      color = MaterialTheme.colorScheme.surface,
+      border = BorderStroke(1.dp, colors.hairlineBorder),
+      tonalElevation = 3.dp
+    ) {
+      Column(
+        modifier = Modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+      ) {
+        VynzoWordmark(fontSize = 24)
+        Spacer(Modifier.height(4.dp))
+        Icon(
+          imageVector = Icons.Rounded.CloudOff,
+          contentDescription = "Firebase configuration required",
+          tint = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.size(44.dp)
+        )
+        Text(
+          text = "Firebase Configuration Missing",
+          style = MaterialTheme.typography.headlineSmall,
+          fontWeight = FontWeight.Bold,
+          textAlign = TextAlign.Center
+        )
+        Text(
+          text = "This Vynzo APK was compiled without Firebase configuration (app/google-services.json). Add app/google-services.json or set the GOOGLE_SERVICES_JSON secret in GitHub Actions and rebuild to enable Google Sign-In, Feed sync, Stories, Reels, and Chat.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = colors.mutedText,
+          textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(4.dp))
+        Button(
+          onClick = onRetry,
+          shape = RoundedCornerShape(14.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .testTag("firebase_retry_button")
+        ) {
+          Text("Retry Firebase Connection")
+        }
+        OutlinedButton(
+          onClick = { showTourPreview = true },
+          shape = RoundedCornerShape(14.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .testTag("firebase_preview_tour_button")
+        ) {
+          Text("Preview Vynzo Tour")
+        }
       }
     }
   }
@@ -191,9 +308,39 @@ private fun AuthenticatedVynzoShell(
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val credentialManager = remember(context) { CredentialManager.create(context) }
-  val db = remember(context) {
-    val dbId = context.getString(R.string.firestore_database_id)
-    FirebaseFirestore.getInstance(dbId)
+  var retryNonce by remember { mutableIntStateOf(0) }
+  val dbResult = remember(context, firebaseUser.uid, retryNonce) {
+    runCatching {
+      val dbId = context.getString(R.string.firestore_database_id).trim()
+      require(dbId.isNotBlank()) { "Firestore database ID is not configured." }
+      FirebaseFirestore.getInstance(dbId)
+    }
+  }
+  val db = dbResult.getOrNull()
+  if (db == null) {
+    val errMsg = dbResult.exceptionOrNull()?.localizedMessage
+      ?: "Unable to initialize Cloud Firestore database."
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)
+        .padding(24.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+      ) {
+        VynzoWordmark(fontSize = 24)
+        Text("Database Setup Unavailable", style = MaterialTheme.typography.titleLarge)
+        Text(errMsg, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+        Button(onClick = { retryNonce += 1 }) { Text("Retry") }
+        OutlinedButton(
+          onClick = { VynzoAuthManager.signOut(credentialManager, scope) }
+        ) { Text("Sign Out") }
+      }
+    }
+    return
   }
 
   val sessionViewModel: VynzoSessionViewModel = viewModel(
@@ -342,7 +489,7 @@ private fun VynzoMainNavigator(
   fun navigateTopTab(route: VynzoRoute) {
     if (route is VynzoRoute.Explore || route is VynzoRoute.Profile) {
       VynzoAdManager.showInterstitialIfEligible(
-        activity = context as? Activity,
+        activity = context.findActivity(),
         adsEnabled = adsEnabled,
         cooldownSec = interstitialCooldownSec,
         personalizedConsent = adsConsent

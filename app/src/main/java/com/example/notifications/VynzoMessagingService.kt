@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.data.firebase.VynzoFirebaseHelper
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
@@ -26,7 +27,8 @@ class VynzoMessagingService : FirebaseMessagingService() {
 
   override fun onNewToken(token: String) {
     super.onNewToken(token)
-    val uid = Firebase.auth.currentUser?.uid ?: return
+    if (!VynzoFirebaseHelper.isFirebaseReady(applicationContext)) return
+    val uid = runCatching { Firebase.auth.currentUser?.uid }.getOrNull() ?: return
     runCatching {
       val dbId = applicationContext.getString(R.string.firestore_database_id)
       val db = FirebaseFirestore.getInstance(dbId)
@@ -57,15 +59,17 @@ class VynzoMessagingService : FirebaseMessagingService() {
 
     fun ensureChannel(context: Context) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val channel = NotificationChannel(
-          CHANNEL_ID,
-          "Vynzo Activity & Messages",
-          NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-          description = "Likes, comments, new followers, and direct messages on Vynzo"
+        runCatching {
+          val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Vynzo Activity & Messages",
+            NotificationManager.IMPORTANCE_DEFAULT
+          ).apply {
+            description = "Likes, comments, new followers, and direct messages on Vynzo"
+          }
+          val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+          manager?.createNotificationChannel(channel)
         }
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
       }
     }
 

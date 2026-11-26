@@ -11,7 +11,7 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
-    VynzoMessagingService.ensureChannel(this)
+    runCatching { VynzoMessagingService.ensureChannel(this) }
     setContent {
       VynzoAppRoot()
     }

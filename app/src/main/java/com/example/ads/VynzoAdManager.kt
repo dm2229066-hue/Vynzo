@@ -86,22 +86,26 @@ object VynzoAdManager {
   }
 
   fun initialize(context: Context, personalizedConsent: Boolean) {
+    val appContext = context.applicationContext ?: context
     if (!initialized) {
       runCatching {
         val config = RequestConfiguration.Builder()
           .setTagForUnderAgeOfConsent(RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_FALSE)
           .build()
         MobileAds.setRequestConfiguration(config)
-        MobileAds.initialize(context) { status ->
+        MobileAds.initialize(appContext) { status ->
           Log.d(TAG, "AdMob initialized: ${status.adapterStatusMap.keys}")
+          preloadInterstitial(appContext, personalizedConsent)
+          preloadRewarded(appContext, personalizedConsent)
         }
         initialized = true
       }.onFailure {
         Log.w(TAG, "AdMob init skipped or unavailable: ${it.message}")
       }
+    } else {
+      preloadInterstitial(appContext, personalizedConsent)
+      preloadRewarded(appContext, personalizedConsent)
     }
-    preloadInterstitial(context, personalizedConsent)
-    preloadRewarded(context, personalizedConsent)
   }
 
   fun buildAdRequest(personalizedConsent: Boolean): AdRequest {

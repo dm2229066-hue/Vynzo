@@ -1,6 +1,5 @@
 package com.example.data.firebase
 
-import android.app.Activity
 import android.content.Context
 import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
@@ -32,7 +31,11 @@ object VynzoAuthManager {
     onAuthSuccess: () -> Unit,
     onUnauthenticated: () -> Unit
   ) {
-    if (Firebase.auth.currentUser != null) {
+    if (!VynzoFirebaseHelper.isFirebaseReady(context)) {
+      onUnauthenticated()
+      return
+    }
+    if (VynzoFirebaseHelper.currentUserOrNull(context) != null) {
       onAuthSuccess()
       return
     }
@@ -57,7 +60,8 @@ object VynzoAuthManager {
 
     scope.launch {
       try {
-        val result = credentialManager.getCredential(context, request)
+        val targetContext = context.findActivity() ?: context
+        val result = credentialManager.getCredential(targetContext, request)
         val cred = result.credential
         if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
           val token = GoogleIdTokenCredential.createFrom(cred.data).idToken
@@ -80,6 +84,10 @@ object VynzoAuthManager {
     onAuthError: (String) -> Unit,
     onAuthCancelled: () -> Unit = {}
   ) {
+    if (!VynzoFirebaseHelper.isFirebaseReady(context)) {
+      onAuthError("Firebase is not configured in this build. Add app/google-services.json and rebuild.")
+      return
+    }
     val clientId = try {
       context.getString(R.string.default_web_client_id).trim()
     } catch (_: Exception) {
@@ -98,7 +106,7 @@ object VynzoAuthManager {
 
     scope.launch {
       try {
-        val activity = context as? Activity
+        val activity = context.findActivity()
           ?: throw IllegalStateException("Google Sign-In requires an Activity context")
         val cred = credentialManager.getCredential(activity, request).credential
         if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
@@ -136,7 +144,7 @@ object VynzoAuthManager {
         } catch (e: Exception) {
           Log.w(TAG, "Failed to clear credential state: ${e.message}")
         } finally {
-          Firebase.auth.signOut()
+          runCatching { Firebase.auth.signOut() }
           onSignOutComplete()
         }
       }
