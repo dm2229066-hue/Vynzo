@@ -30,10 +30,46 @@ jobs:
             cp .env.example .env
           fi
 
+      - name: Restore Firebase google-services.json from Secrets if missing
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ ! -f app/google-services.json ]; then
+            if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+              printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+              echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON secret."
+            elif [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+              printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
+              echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret."
+            else
+              echo "::warning::app/google-services.json is missing. Add it to the repo or configure GOOGLE_SERVICES_JSON secret for full Firebase Google Sign-In in CI APKs."
+            fi
+          fi
+
+      - name: Ensure CI debug keystore exists
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair \
+              -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       - name: Run Unit & Robolectric Tests
+        env:
+          FIREBASE_WEB_CLIENT_ID: ${{ secrets.FIREBASE_WEB_CLIENT_ID }}
         run: gradle :app:testDebugUnitTest
 
       - name: Build Debug APK
+        env:
+          FIREBASE_WEB_CLIENT_ID: ${{ secrets.FIREBASE_WEB_CLIENT_ID }}
         run: gradle :app:assembleDebug
 
       - name: Upload Debug APK Artifact

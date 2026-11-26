@@ -23,6 +23,13 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["ADMOB_APP_ID"] = System.getenv("ADMOB_APP_ID")?.takeIf { it.isNotBlank() }
       ?: "ca-app-pub-3940256099942544~3347511713"
+    if (!file("google-services.json").exists()) {
+      resValue(
+        "string",
+        "default_web_client_id",
+        System.getenv("FIREBASE_WEB_CLIENT_ID")?.takeIf { it.isNotBlank() } ?: ""
+      )
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
@@ -65,6 +72,7 @@ android {
   buildFeatures {
     compose = true
     buildConfig = true
+    resValues = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {

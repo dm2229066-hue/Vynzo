@@ -37,8 +37,12 @@ object VynzoAuthManager {
       return
     }
     val clientId = try {
-      context.getString(R.string.default_web_client_id)
+      context.getString(R.string.default_web_client_id).trim()
     } catch (_: Exception) {
+      onUnauthenticated()
+      return
+    }
+    if (clientId.isBlank()) {
       onUnauthenticated()
       return
     }
@@ -77,9 +81,13 @@ object VynzoAuthManager {
     onAuthCancelled: () -> Unit = {}
   ) {
     val clientId = try {
-      context.getString(R.string.default_web_client_id)
+      context.getString(R.string.default_web_client_id).trim()
     } catch (_: Exception) {
       onAuthError("Google Sign-In configuration missing: default_web_client_id not found")
+      return
+    }
+    if (clientId.isBlank()) {
+      onAuthError("Google Sign-In is not configured: add app/google-services.json with a Web OAuth client ID.")
       return
     }
 
