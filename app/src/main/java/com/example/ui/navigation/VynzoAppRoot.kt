@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +35,9 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.rounded.AddBox
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Movie
@@ -219,8 +222,11 @@ fun VynzoAppRoot() {
 
 @Composable
 private fun FirebaseSetupRequiredScreen(onRetry: () -> Unit) {
+  val context = LocalContext.current
   val colors = LocalVynzoColors.current
   var showTourPreview by remember { mutableStateOf(false) }
+  var checkNonce by remember { mutableIntStateOf(0) }
+  val status = remember(context, checkNonce) { VynzoFirebaseHelper.diagnoseConfig(context) }
 
   if (showTourPreview) {
     VynzoOnboardingView(onFinish = { showTourPreview = false })
@@ -267,14 +273,35 @@ private fun FirebaseSetupRequiredScreen(onRetry: () -> Unit) {
           textAlign = TextAlign.Center
         )
         Text(
-          text = "This Vynzo APK was compiled without Firebase configuration (app/google-services.json). Add app/google-services.json or set the GOOGLE_SERVICES_JSON secret in GitHub Actions and rebuild to enable Google Sign-In, Feed sync, Stories, Reels, and Chat.",
+          text = "Firebase failed to initialize for package ${status.packageName}. Provide app/google-services.json (or set the GOOGLE_SERVICES_JSON GitHub Actions secret) and rebuild the APK to enable Auth, Cloud Firestore, Google Sign-In, Feed, Stories, Reels, and Chat.",
           style = MaterialTheme.typography.bodyMedium,
           color = colors.mutedText,
           textAlign = TextAlign.Center
         )
+        Surface(
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(14.dp),
+          color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+          border = BorderStroke(1.dp, colors.hairlineBorder)
+        ) {
+          Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            FirebaseStatusRow("Firebase App ID", status.hasGoogleAppId)
+            FirebaseStatusRow("Firebase API Key", status.hasGoogleApiKey)
+            FirebaseStatusRow("Firebase Project ID", status.hasProjectId)
+            FirebaseStatusRow("Google Sign-In Client ID", status.hasWebClientId)
+            FirebaseStatusRow("Firestore Database ID", status.hasFirestoreDatabaseId)
+            FirebaseStatusRow("Firebase SDK Initialized", status.isFirebaseInitialized)
+          }
+        }
         Spacer(Modifier.height(4.dp))
         Button(
-          onClick = onRetry,
+          onClick = {
+            checkNonce += 1
+            onRetry()
+          },
           shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
@@ -294,6 +321,35 @@ private fun FirebaseSetupRequiredScreen(onRetry: () -> Unit) {
           Text("Preview Vynzo Tour")
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun FirebaseStatusRow(label: String, configured: Boolean) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Text(
+      text = label,
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurface
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Icon(
+        imageVector = if (configured) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+        contentDescription = if (configured) "Configured" else "Missing",
+        tint = if (configured) LocalVynzoColors.current.successEmerald else MaterialTheme.colorScheme.error,
+        modifier = Modifier.size(16.dp)
+      )
+      Spacer(Modifier.width(4.dp))
+      Text(
+        text = if (configured) "Configured" else "Missing",
+        style = MaterialTheme.typography.labelSmall,
+        color = if (configured) LocalVynzoColors.current.successEmerald else MaterialTheme.colorScheme.error
+      )
     }
   }
 }

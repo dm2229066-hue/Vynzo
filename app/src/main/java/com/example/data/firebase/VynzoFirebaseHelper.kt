@@ -9,6 +9,16 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.auth
 
+data class FirebaseConfigStatus(
+  val packageName: String,
+  val hasGoogleAppId: Boolean,
+  val hasGoogleApiKey: Boolean,
+  val hasProjectId: Boolean,
+  val hasFirestoreDatabaseId: Boolean,
+  val hasWebClientId: Boolean,
+  val isFirebaseInitialized: Boolean
+)
+
 object VynzoFirebaseHelper {
   private const val TAG = "VynzoFirebase"
 
@@ -37,6 +47,35 @@ object VynzoFirebaseHelper {
   fun currentUserOrNull(context: Context): FirebaseUser? {
     if (!ensureInitialized(context)) return null
     return runCatching { Firebase.auth.currentUser }.getOrNull()
+  }
+
+  fun diagnoseConfig(context: Context): FirebaseConfigStatus {
+    val appContext = context.applicationContext ?: context
+    val initialized = ensureInitialized(appContext)
+
+    fun hasGeneratedString(name: String): Boolean {
+      val resId = appContext.resources.getIdentifier(name, "string", appContext.packageName)
+      if (resId == 0) return false
+      return runCatching { appContext.getString(resId).trim().isNotEmpty() }.getOrDefault(false)
+    }
+
+    val hasDbId = runCatching {
+      appContext.getString(com.example.R.string.firestore_database_id).trim().isNotEmpty()
+    }.getOrDefault(false)
+
+    val hasWebClient = runCatching {
+      appContext.getString(com.example.R.string.default_web_client_id).trim().isNotEmpty()
+    }.getOrDefault(false)
+
+    return FirebaseConfigStatus(
+      packageName = appContext.packageName,
+      hasGoogleAppId = !forceUninitializedForTest && hasGeneratedString("google_app_id"),
+      hasGoogleApiKey = !forceUninitializedForTest && hasGeneratedString("google_api_key"),
+      hasProjectId = !forceUninitializedForTest && hasGeneratedString("project_id"),
+      hasFirestoreDatabaseId = hasDbId,
+      hasWebClientId = hasWebClient,
+      isFirebaseInitialized = initialized
+    )
   }
 }
 

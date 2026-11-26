@@ -35,31 +35,67 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: |
-          if [ ! -f app/google-services.json ]; then
-            if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-              printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
-              echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON secret."
-            elif [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-              printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
-              echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret."
-            else
-              echo "::warning::app/google-services.json is missing. Add it to the repo or configure GOOGLE_SERVICES_JSON secret for full Firebase Google Sign-In in CI APKs."
-            fi
+          if [ -f app/google-services.json ]; then
+            echo "Using repository app/google-services.json."
+          elif [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            python3 -c '
+import json, os, sys
+raw = os.environ["GOOGLE_SERVICES_JSON"].strip()
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError as e:
+    print(f"::error::GOOGLE_SERVICES_JSON secret is not valid JSON: {e}")
+    sys.exit(1)
+clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
+if "com.aistudio.vynzo.kxmpzq" not in clients:
+    print("::error::GOOGLE_SERVICES_JSON does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
+    sys.exit(1)
+with open("app/google-services.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON secret (values redacted).")
+'
+          elif [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            python3 -c '
+import base64, json, os, re, sys
+b64 = re.sub(r"\s+", "", os.environ["GOOGLE_SERVICES_JSON_BASE64"])
+try:
+    raw = base64.b64decode(b64).decode("utf-8")
+    data = json.loads(raw)
+except Exception as e:
+    print(f"::error::GOOGLE_SERVICES_JSON_BASE64 secret is invalid: {e}")
+    sys.exit(1)
+clients = [c.get("client_info", {}).get("android_client_info", {}).get("package_name") for c in data.get("client", [])]
+if "com.aistudio.vynzo.kxmpzq" not in clients:
+    print("::error::GOOGLE_SERVICES_JSON_BASE64 does not contain Android client for package com.aistudio.vynzo.kxmpzq.")
+    sys.exit(1)
+with open("app/google-services.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+print("Successfully generated app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret (values redacted).")
+'
+          else
+            echo "::warning::Firebase config missing: neither app/google-services.json nor GOOGLE_SERVICES_JSON secret was provided. The APK will open to the Firebase Configuration Missing screen until GOOGLE_SERVICES_JSON is added in GitHub Secrets."
           fi
 
       - name: Ensure CI debug keystore exists
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
           if [ ! -f debug.keystore ]; then
-            keytool -genkeypair \
-              -v \
-              -keystore debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+              printf '%s' "$DEBUG_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > debug.keystore
+              echo "Restored debug.keystore from DEBUG_KEYSTORE_BASE64 secret."
+            else
+              keytool -genkeypair \
+                -v \
+                -keystore debug.keystore \
+                -storepass android \
+                -alias androiddebugkey \
+                -keypass android \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
           fi
 
       - name: Run Unit & Robolectric Tests

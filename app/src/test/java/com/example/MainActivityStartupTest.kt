@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.credentials.CredentialManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -82,12 +83,19 @@ class MainActivityStartupTest {
     VynzoFirebaseHelper.forceUninitializedForTest = true
     FirebaseApp.clearInstancesForTest()
 
+    val status = VynzoFirebaseHelper.diagnoseConfig(context)
+    assertFalse(status.isFirebaseInitialized)
+    assertTrue(status.hasFirestoreDatabaseId)
+
     ActivityScenario.launch(MainActivity::class.java).use {
       composeTestRule.waitForIdle()
       assertFalse(VynzoFirebaseHelper.isFirebaseReady(context))
       composeTestRule.onNodeWithText("Firebase Configuration Missing").assertIsDisplayed()
-      composeTestRule.onNodeWithTag("firebase_retry_button").assertIsDisplayed()
-      composeTestRule.onNodeWithTag("firebase_preview_tour_button").performClick()
+      composeTestRule.onNodeWithText("Firebase App ID").assertIsDisplayed()
+      composeTestRule.onNodeWithText("Google Sign-In Client ID").assertIsDisplayed()
+      composeTestRule.onNodeWithText("Firestore Database ID").assertIsDisplayed()
+      composeTestRule.onNodeWithTag("firebase_retry_button").performScrollTo().assertIsDisplayed()
+      composeTestRule.onNodeWithTag("firebase_preview_tour_button").performScrollTo().performClick()
       composeTestRule.waitForIdle()
       composeTestRule.onNodeWithTag("onboarding_next_button").assertIsDisplayed()
     }
